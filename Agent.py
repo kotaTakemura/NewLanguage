@@ -16,6 +16,16 @@ WORLD_CELL = 80
 WORLD_SCALE = WORLD_CELL * WORLD_CELL_NUM
 MOVE_SCALE = 2
 
+def get_hurm_score(num_of_neighbor):
+    if num_of_neighbor <= 2:
+        return 100
+    if num_of_neighbor <= 4:    
+        return 40
+    if num_of_neighbor <= 7:    
+        return -100
+    else:    
+        return -200
+
 # Stochastic Gradient Descent
 def sgd(params, g_params, eps=np.float32(0.1)):
     updates = OrderedDict()
@@ -27,9 +37,9 @@ def get_near_adresses(address):
     nears = [[i, j] for i in range(address[0] - 1, address[0] + 2) 
              for j in range(address[1] - 1, address[1] + 2)]
     return nears
-# print(get_near_adresses([5, 5]))
     
 def move_limitation(coo):
+    """
     if coo[0] < 0:
         coo[0] = 0
     if coo[0] > WORLD_SCALE:
@@ -39,6 +49,8 @@ def move_limitation(coo):
     if coo[1] > WORLD_SCALE:
         coo[1] = WORLD_SCALE   
     return coo
+    """
+    return coo%WORLD_SCALE
 
 class voice():
     def __init__(self, words):
@@ -59,8 +71,8 @@ class Agent():
         self.address = (self.coo/WORLD_CELL).astype('int32')
     def get_point(self):
         return self.score
-    def hurmed(self):
-        self.score -= 100
+    def hurmed(self, agents):
+        self.score -= get_hurm_score(self.count_friends(agents))
     def count_friends(self,agents):
         count = -1
         for agent in agents:
@@ -159,8 +171,6 @@ class Enemy():
     def move(self, agents):
         degree = np.pi / 4
         scale = 1
-#         print(self.see(agents))
-#         print(self.test(self.see(agents)))
         self.degree = degree * self.test(self.see(agents))[0]
         self.coo = self.coo + np.array([MOVE_SCALE * scale * np.cos(self.degree), 
                                         MOVE_SCALE * scale * np.sin(self.degree)])
@@ -178,20 +188,8 @@ class Enemy():
     def hurm(self,agents):
         for agent in agents:
             if all(agent.get_address() == self.address):
-                agent.hurmed()
-                if agent.count_friends(agents) <= 2:
-                    self.score += 100
-                    break
-                if agent.count_friends(agents) <= 4:    
-                    self.score += 40
-                    break
-                if agent.count_friends(agents) <= 7:    
-                    self.score -= 100
-                    break
-                else:    
-                    self.score -= 200
-                    break
-        
+                agent.hurmed(agents)
+                self.score += get_hurm_score(agent.count_friends(agents))
                
 agents = [Agent() for i in range(50)]
 enemies = [Enemy() for i in range(2)]
@@ -203,7 +201,6 @@ for i in range(SIMULATION_LENGTH):
         agent.invoice(0)
         agent.outvoice()
         agent.move(0.1, 1)
-#         print(agent.see(agents, enemies))
         pos_in.append(agent.get_coo())
     for enemy in enemies:
         enemy.move(agents)    
@@ -213,13 +210,6 @@ for i in range(SIMULATION_LENGTH):
             enemy.train_weight()
     pos.append(pos_in)
     
-    
-    
-print("points of agents:")
-for agent in agents:
-    print("%5d,"  % agent.get_point(), end=" ")
- 
-      
 
 cnt = 0 
 root = Tk()
@@ -250,8 +240,15 @@ def show():
     cnt += 1
 
 
-print(enemies[0].get_point())
 
+print("points of agents:")
+for agent in agents:
+    print("%5d,"  % agent.get_point(), end=" ")
+print("")
+    
+print("points of enemies:")
+for enemy in enemies:
+    print("%5d,"  % enemy.get_point(), end=" ")
 
 show()
 root.mainloop()  
